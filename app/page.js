@@ -6,6 +6,7 @@ import ResultCard from "./components/ResultCard";
 import "./globals.css";
 import { runPageSpeedTests } from "./services/pagespeedService";
 
+
 export default function Home() {
   const [urls, setUrls] = useState("");
   const [apiKey, setApiKey] = useState("");
@@ -49,44 +50,75 @@ export default function Home() {
     }
   };
 
-  // Handle exporting results
-  const handleExport = async (format) => {
-    if (!results || results.length === 0) {
-      alert("No results to export");
-      return;
-    }
+  // // Handle exporting results
+  // const handleExport = async (format) => {
+  //   if (!results || results.length === 0) {
+  //     alert("No results to export");
+  //     return;
+  //   }
 
+  //   try {
+  //     const response = await fetch(`/api/export/${format}`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify({
+  //         results,
+  //         reportName: "PageSpeed Insights Report",
+  //       }),
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error(`Failed to generate ${format.toUpperCase()} export`);
+  //     }
+
+  //     // Handle the exported file
+  //     const blob = await response.blob();
+  //     const url = URL.createObjectURL(blob);
+
+  //     // Create a link and trigger download
+  //     const a = document.createElement("a");
+  //     a.href = url;
+  //     a.download = `pagespeed-report.${format}`;
+  //     document.body.appendChild(a);
+  //     a.click();
+  //     document.body.removeChild(a);
+  //     URL.revokeObjectURL(url);
+  //   } catch (error) {
+  //     console.error("Export error:", error);
+  //     alert(`Error exporting as ${format.toUpperCase()}: ${error.message}`);
+  //   }
+  // };
+
+  const handleExport = async (format) => {
     try {
+      console.log(`Sending ${format} export request`);
+
       const response = await fetch(`/api/export/${format}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          results,
-          reportName: "PageSpeed Insights Report",
+          test: true,
+          format: format,
         }),
       });
 
+      console.log("Response status:", response.status);
+
+      const data = await response.json();
+      console.log("Response data:", data);
+
       if (!response.ok) {
-        throw new Error(`Failed to generate ${format.toUpperCase()} export`);
+        throw new Error(`Failed with status ${response.status}`);
       }
 
-      // Handle the exported file
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-
-      // Create a link and trigger download
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `pagespeed-report.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      alert(`${format} export request successful!`);
     } catch (error) {
       console.error("Export error:", error);
-      alert(`Error exporting as ${format.toUpperCase()}: ${error.message}`);
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -233,12 +265,6 @@ export default function Home() {
                   className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
                 >
                   Export PDF
-                </button>
-                <button
-                  onClick={() => handleExport("html")}
-                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
-                >
-                  Export HTML
                 </button>
                 <button
                   onClick={handleSaveAsScheduled}
