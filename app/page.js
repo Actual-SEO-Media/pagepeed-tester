@@ -50,75 +50,44 @@ export default function Home() {
     }
   };
 
-  // // Handle exporting results
-  // const handleExport = async (format) => {
-  //   if (!results || results.length === 0) {
-  //     alert("No results to export");
-  //     return;
-  //   }
-
-  //   try {
-  //     const response = await fetch(`/api/export/${format}`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify({
-  //         results,
-  //         reportName: "PageSpeed Insights Report",
-  //       }),
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error(`Failed to generate ${format.toUpperCase()} export`);
-  //     }
-
-  //     // Handle the exported file
-  //     const blob = await response.blob();
-  //     const url = URL.createObjectURL(blob);
-
-  //     // Create a link and trigger download
-  //     const a = document.createElement("a");
-  //     a.href = url;
-  //     a.download = `pagespeed-report.${format}`;
-  //     document.body.appendChild(a);
-  //     a.click();
-  //     document.body.removeChild(a);
-  //     URL.revokeObjectURL(url);
-  //   } catch (error) {
-  //     console.error("Export error:", error);
-  //     alert(`Error exporting as ${format.toUpperCase()}: ${error.message}`);
-  //   }
-  // };
-
+  // Handle exporting results
   const handleExport = async (format) => {
-    try {
-      console.log(`Sending ${format} export request`);
+    if (!results || results.length === 0) {
+      alert("No results to export");
+      return;
+    }
 
+    try {
       const response = await fetch(`/api/export/${format}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          test: true,
-          format: format,
+          results,
+          reportName: "PageSpeed Insights Report",
         }),
       });
 
-      console.log("Response status:", response.status);
-
-      const data = await response.json();
-      console.log("Response data:", data);
-
       if (!response.ok) {
-        throw new Error(`Failed with status ${response.status}`);
+        throw new Error(`Failed to generate ${format.toUpperCase()} export`);
       }
 
-      alert(`${format} export request successful!`);
+      // Handle the exported file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+
+      // Create a link and trigger download
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `pagespeed-report.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("Export error:", error);
-      alert(`Error: ${error.message}`);
+      alert(`Error exporting as ${format.toUpperCase()}: ${error.message}`);
     }
   };
 
