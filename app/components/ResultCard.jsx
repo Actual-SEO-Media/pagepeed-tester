@@ -1,11 +1,10 @@
 'use client';
 
 export default function ResultCard({ result }) {
-  // Add check for undefined result
   if (!result) {
     return (
-      <div className="border rounded p-4 bg-yellow-50 border-yellow-200">
-        <p className="text-yellow-600">No result data available</p>
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 shadow-sm">
+        <p className="text-sm text-gray-500">No result data available</p>
       </div>
     );
   }
@@ -14,14 +13,16 @@ export default function ResultCard({ result }) {
     url,
     data,
     error,
-    strategy = 'Desktop' // Default to mobile if not provided
+    strategy = 'Desktop' // Default to Desktop if not provided
   } = result;
   
   if (error) {
     return (
-      <div className="border rounded p-4 bg-red-50 border-red-200">
-        <h3 className="font-semibold text-lg mb-2 break-words">{url}</h3>
-        <p className="text-red-600">{error}</p>
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 shadow-sm">
+        <h3 className="mb-3 break-words text-sm font-medium text-gray-900">{url}</h3>
+        <div className="rounded-md bg-red-50 p-3">
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
       </div>
     );
   }
@@ -29,9 +30,11 @@ export default function ResultCard({ result }) {
   // Check if data and required properties exist to avoid errors
   if (!data || !data.lighthouseResult || !data.lighthouseResult.categories) {
     return (
-      <div className="border rounded p-4 bg-yellow-50 border-yellow-200">
-        <h3 className="font-semibold text-lg mb-2 break-words">{url}</h3>
-        <p className="text-yellow-600">Invalid or incomplete response data</p>
+      <div className="rounded-lg border border-gray-200 bg-gray-50 p-5 shadow-sm">
+        <h3 className="mb-3 break-words text-sm font-medium text-gray-900">{url}</h3>
+        <div className="rounded-md bg-amber-50 p-3">
+          <p className="text-sm text-amber-500">Invalid or incomplete response data</p>
+        </div>
       </div>
     );
   }
@@ -61,99 +64,85 @@ export default function ResultCard({ result }) {
 
   // Get numeric values and assess performance
   const getVitalClass = (auditId) => {
-    if (!audits[auditId]) return 'text-gray-600';
+    if (!audits[auditId]) return 'text-gray-400';
     const score = audits[auditId].score;
-    if (score >= 0.9) return 'text-green-600';
-    if (score >= 0.5) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 0.9) return 'text-emerald-600';
+    if (score >= 0.5) return 'text-amber-500';
+    return 'text-rose-500';
   };
   
   const getScoreColor = (score) => {
-    if (score >= 90) return 'text-green-600';
-    if (score >= 50) return 'text-yellow-600';
-    return 'text-red-600';
+    if (score >= 90) return 'text-emerald-600';
+    if (score >= 50) return 'text-amber-500';
+    return 'text-rose-500';
+  };
+
+  const getScoreBg = (score) => {
+    if (score >= 90) return 'bg-emerald-50';
+    if (score >= 50) return 'bg-amber-50';
+    return 'bg-rose-50';
   };
   
   return (
-    <div className="border rounded p-4 bg-white shadow-sm">
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="font-semibold text-lg break-words">{url}</h3>
-        <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 text-gray-800">
-          {strategy === 'mobile' ? 'Mobile' : 'Desktop'}
-        </span>
-      </div>
-      
-      {/* Main scores */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="p-2">
-          <div className="text-sm text-gray-600">Performance</div>
-          <div className={`font-bold text-xl ${getScoreColor(scores.performance)}`}>
-            {Math.round(scores.performance)}
-          </div>
+    <div className="overflow-hidden rounded-sm border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md">
+      <div className="px-5 pt-4">
+        <div className="flex items-start justify-between gap-2">
+          <h3 className="break-words text-sm font-medium text-gray-900">{url}</h3>
+          <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+            {strategy === 'mobile' ? 'Mobile' : 'Desktop'}
+          </span>
         </div>
-        <div className="p-2">
-          <div className="text-sm text-gray-600">Accessibility</div>
-          <div className={`font-bold text-xl ${getScoreColor(scores.accessibility)}`}>
-            {Math.round(scores.accessibility)}
-          </div>
-        </div>
-        <div className="p-2">
-          <div className="text-sm text-gray-600">Best Practices</div>
-          <div className={`font-bold text-xl ${getScoreColor(scores.bestPractices)}`}>
-            {Math.round(scores.bestPractices)}
-          </div>
-        </div>
-        <div className="p-2">
-          <div className="text-sm text-gray-600">SEO</div>
-          <div className={`font-bold text-xl ${getScoreColor(scores.seo)}`}>
-            {Math.round(scores.seo)}
-          </div>
+        
+        {/* Main scores */}
+        <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+          {Object.entries(scores).map(([key, score]) => (
+            <div key={key} className="flex flex-col">
+              <span className="text-xs font-medium text-gray-500 whitespace-nowrap">
+                {key === 'bestPractices' ? 'Best Practices' : key.charAt(0).toUpperCase() + key.slice(1)}
+              </span>
+              <div className="mt-1">
+                <span className={`text-xl font-semibold ${getScoreColor(score)}`}>
+                  {Math.round(score)}
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       
       {/* Core Web Vitals section */}
-      <div className="mt-4 border-t pt-3">
-        <h4 className="text-md font-semibold mb-2">Core Web Vitals</h4>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-          <div>
-            <span className="text-gray-600">LCP: </span>
-            <span className={getVitalClass('largest-contentful-paint')}>{webVitals.lcp}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">FID: </span>
-            <span className={getVitalClass('max-potential-fid')}>{webVitals.fid}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">CLS: </span>
-            <span className={getVitalClass('cumulative-layout-shift')}>{webVitals.cls}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">FCP: </span>
-            <span className={getVitalClass('first-contentful-paint')}>{webVitals.fcp}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">TTI: </span>
-            <span className={getVitalClass('interactive')}>{webVitals.tti}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">TBT: </span>
-            <span className={getVitalClass('total-blocking-time')}>{webVitals.tbt}</span>
-          </div>
-          <div>
-            <span className="text-gray-600">Speed Index: </span>
-            <span className={getVitalClass('speed-index')}>{webVitals.si}</span>
+      <div className="mt-4 border-t border-gray-100">
+        <div className="px-5 py-3">
+          <h4 className="mb-2 text-xs font-medium uppercase text-gray-500">Core Web Vitals</h4>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-3">
+            {Object.entries(webVitals).map(([key, value]) => (
+              <div key={key} className="flex items-center">
+                <span className="text-xs font-medium text-gray-500">{key.toUpperCase()}: </span>
+                <span className={`ml-1 text-xs ${getVitalClass(`${key === 'lcp' ? 'largest-contentful-paint' : 
+                                      key === 'fid' ? 'max-potential-fid' : 
+                                      key === 'cls' ? 'cumulative-layout-shift' : 
+                                      key === 'fcp' ? 'first-contentful-paint' : 
+                                      key === 'tti' ? 'interactive' : 
+                                      key === 'tbt' ? 'total-blocking-time' : 
+                                      'speed-index'}`)}`}>
+                  {value}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
       
-      <a 
-        href={`https://developers.google.com/speed/pagespeed/insights/?url=${encodeURIComponent(url)}&strategy=${strategy}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="block mt-4 text-center text-sm text-blue-600 hover:underline"
-      >
-        View Full Report
-      </a>
+      <div className="border-t border-gray-100 bg-gray-50 px-5 py-3">
+        <a 
+          href={`https://developers.google.com/speed/pagespeed/insights/?url=${encodeURIComponent(url)}&strategy=${strategy}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-xs font-medium text-blue-500 transition-colors hover:text-blue-600"
+        >
+          View Full Report
+        </a>
+      </div>
     </div>
   );
 }
