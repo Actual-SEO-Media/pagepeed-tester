@@ -5,6 +5,7 @@ import Link from "next/link";
 import ResultCard from "./components/ResultCard";
 import "./globals.css";
 import { runPageSpeedTests } from "./services/pagespeedService";
+import { jsPDF } from "jspdf";
 
 
 export default function Home() {
@@ -49,47 +50,321 @@ export default function Home() {
       setLoading(false);
     }
   };
+  const handleExportPDF = () => {
+  if (!results || results.length === 0) {
+    alert("No results to export");
+    return;
+  }
 
-  // Handle exporting results
-  const handleExport = async (format) => {
-    if (!results || results.length === 0) {
-      alert("No results to export");
-      return;
+  try {
+    setLoading(true);
+    
+    // Create a new PDF document - using portrait for the card layout
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'a4'
+    });
+    
+    // Constants for layout
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+    const margin = 30;
+    const contentWidth = pageWidth - (margin * 2);
+    
+    // Title and timestamp on first page
+    doc.setFontSize(16);
+    doc.setTextColor(33, 33, 33);
+    doc.text("PageSpeed Insights Report", margin, margin + 10);
+    
+    doc.setFontSize(9);
+    doc.setTextColor(102, 102, 102);
+    doc.text(`Generated on ${new Date().toLocaleString()}`, margin, margin + 25);
+    
+    // Add horizontal line
+    doc.setDrawColor(230, 230, 230);
+    doc.setLineWidth(0.5);
+    doc.line(margin, margin + 35, pageWidth - margin, margin + 35);
+    
+    // Start position for results
+    let y = margin + 50;
+    const cardsPerRow = 1; // One card per row
+    const cardMargin = 15;
+    const cardWidth = contentWidth;
+    const cardHeight = 190; // Height for each card
+    
+    // Color function for scores
+    const getScoreColor = (score) => {
+      if (score >= 90) return [16, 185, 129]; // green - similar to tailwind's emerald-500
+      if (score >= 50) return [245, 158, 11]; // amber - similar to tailwind's amber-500
+      return [239, 68, 68]; // red - similar to tailwind's red-500
+    };
+    
+    // Process each result
+    for (let i = 0; i < results.length; i++) {
+      const result = results[i];
+      
+      // Calculate position
+      const rowIndex = Math.floor(i / cardsPerRow);
+      const colIndex = i % cardsPerRow;
+      const cardX = margin + (colIndex * (cardWidth + cardMargin));
+      const cardY = y + (rowIndex * (cardHeight + cardMargin));
+      
+      // Check if we need a new page
+      if (cardY + cardHeight > pageHeight - margin) {
+        doc.addPage();
+        y = margin;
+        i--; // Process this result again on the new page
+        continue;
+      }
+      
+      // Create card outline - white card with light gray border
+      doc.setDrawColor(226, 232, 240); // tailwind gray-300
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(cardX, cardY, cardWidth, cardHeight, 3, 3, 'FD');
+      
+      // URL with strategy badge
+      const displayUrl = result.url.length > 50 
+        ? result.url.substring(0, 47) + '...' 
+        : result.url;
+      
+      // URL text
+      doc.setFontSize(10);
+      doc.setFont(undefined, 'bold');
+      doc.setTextColor(31, 41, 55); // tailwind gray-800
+      doc.text(displayUrl, cardX + 15, cardY + 25);
+      
+      // Strategy badge
+      const strategy = result.strategy === 'mobile' ? 'Mobile' : 'Desktop';
+      doc.setFillColor(240, 240, 240);
+      const strategyTextWidth = doc.getStringUnitWidth(strategy) * 9 * doc.internal.scaleFactor / 72;
+      doc.roundedRect(cardX + cardWidth - 15 - strategyTextWidth - 10, cardY + 14, strategyTextWidth + 10, 18, 2, 2, 'F');
+      doc.setFontSize(9);
+      doc.setTextColor(75, 85, 99); // tailwind gray-600
+      doc.text(strategy, cardX + cardWidth - 15 - strategyTextWidth - 5, cardY + 25);
+      
+      if (result.error) {
+        // Error display
+        doc.setFillColor(254, 226, 226); // tailwind red-100
+        doc.roundedRect(cardX + 15, cardY + 40, cardWidth - 30, 30, 2, 2, 'F');
+        doc.setTextColor(220, 38, 38); // tailwind red-600
+        doc.setFontSize(10);
+        doc.text(`Error: ${result.error}`, cardX + 25, cardY + 60);
+      } else if (result.data && result.data.lighthouseResult) {
+        const lhr = result.data.lighthouseResult;
+        const categories = lhr.categories;
+        
+        if (categories) {
+          // Performance metrics row
+          let metricsY = cardY + 55;
+          
+          // Category labels in first row
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99); // tailwind gray-600
+          
+          const metrics = [
+            { name: "Performance", score: categories.performance?.score || 0 },
+            { name: "Accessibility", score: categories.accessibility?.score || 0 },
+            { name: "Best Practices", score: categories['best-practices']?.score || 0 },
+            { name: "Seo", score: categories.seo?.score || 0 }
+          ];
+          
+          const metricWidth = (cardWidth - 30) / metrics.length;
+          
+          metrics.forEach((metric, idx) => {
+            const metricX = cardX + 15 + (idx * metricWidth);
+            
+            // Category name
+            doc.text(metric.name, metricX, metricsY);
+            
+            // Score with appropriate color
+            const score = Math.round(metric.score * 100);
+            const scoreColor = getScoreColor(score);
+            doc.setFontSize(16);
+            doc.setTextColor(scoreColor[0], scoreColor[1], scoreColor[2]);
+            doc.setFont(undefined, 'bold');
+            doc.text(`${score}`, metricX, metricsY + 20);
+          });
+          
+          // Reset font
+          doc.setFont(undefined, 'normal');
+          
+          // CORE WEB VITALS section
+          const vitalsY = metricsY + 45;
+          
+          // Title
+          doc.setFontSize(9);
+          doc.setTextColor(75, 85, 99); // tailwind gray-600
+          doc.setFont(undefined, 'bold');
+          doc.text("CORE WEB VITALS", cardX + 15, vitalsY);
+          doc.setFont(undefined, 'normal');
+          
+          // Extract web vitals
+          const audits = lhr.audits || {};
+          
+          // First row of web vitals
+          const vitalsRow1 = [
+            { 
+              name: "LCP:",
+              value: audits['largest-contentful-paint']?.displayValue || 'N/A',
+              score: audits['largest-contentful-paint']?.score || 0
+            },
+            { 
+              name: "FID:",
+              value: audits['max-potential-fid']?.displayValue || 'N/A',
+              score: audits['max-potential-fid']?.score || 0
+            },
+            { 
+              name: "CLS:",
+              value: audits['cumulative-layout-shift']?.displayValue || 'N/A',
+              score: audits['cumulative-layout-shift']?.score || 0
+            }
+          ];
+          
+          // Second row of web vitals
+          const vitalsRow2 = [
+            { 
+              name: "FCP:",
+              value: audits['first-contentful-paint']?.displayValue || 'N/A',
+              score: audits['first-contentful-paint']?.score || 0
+            },
+            { 
+              name: "TTI:",
+              value: audits['interactive']?.displayValue || 'N/A',
+              score: audits['interactive']?.score || 0
+            },
+            { 
+              name: "TBT:",
+              value: audits['total-blocking-time']?.displayValue || 'N/A',
+              score: audits['total-blocking-time']?.score || 0
+            }
+          ];
+          
+          // Function to draw web vitals row
+          const drawVitalsRow = (vitals, rowY) => {
+            const vitalWidth = (cardWidth - 30) / vitals.length;
+            
+            vitals.forEach((vital, idx) => {
+              const vitalX = cardX + 15 + (idx * vitalWidth);
+              
+              // Get color for the value
+              const valueColor = getScoreColor(vital.score);
+              
+              // Vital name
+              doc.setFontSize(9);
+              doc.setTextColor(75, 85, 99); // tailwind gray-600
+              doc.text(vital.name, vitalX, rowY);
+              
+              // Vital value with color
+              doc.setTextColor(valueColor[0], valueColor[1], valueColor[2]);
+              doc.text(vital.value, vitalX + 30, rowY);
+            });
+          };
+          
+          // Draw both rows of web vitals
+          drawVitalsRow(vitalsRow1, vitalsY + 20);
+          drawVitalsRow(vitalsRow2, vitalsY + 40);
+          
+          // View Full Report link at bottom
+          const linkY = vitalsY + 70;
+          doc.setTextColor(59, 130, 246); // tailwind blue-500
+          doc.setFontSize(9);
+          
+          const linkText = "View Full Report";
+          const linkWidth = doc.getStringUnitWidth(linkText) * 9 * doc.internal.scaleFactor / 72;
+          const linkX = cardX + (cardWidth - linkWidth) / 2; // Center link
+          
+          doc.text(linkText, linkX, linkY);
+        } else {
+          // No data available
+          doc.setTextColor(102, 102, 102);
+          doc.setFontSize(10);
+          doc.text("No valid data available", cardX + 15, cardY + 60);
+        }
+      } else {
+        // No data available
+        doc.setTextColor(102, 102, 102);
+        doc.setFontSize(10);
+        doc.text("No valid data available", cardX + 15, cardY + 60);
+      }
     }
-
-    try {
-      const response = await fetch(`/api/export/${format}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          results,
-          reportName: "PageSpeed Insights Report",
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to generate ${format.toUpperCase()} export`);
+    
+    // Save and download PDF
+    doc.save("pagespeed-report.pdf");
+    
+  } catch (error) {
+    console.error("PDF generation error:", error);
+    alert(`Error generating PDF: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+};
+  // Handle exporting results
+    const handleExportCSV = async () => {
+      if (!results || results.length === 0) {
+        alert("No results to export");
+        return;
       }
 
-      // Handle the exported file
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      try {
+        setLoading(true);
+        console.log(
+          `Sending CSV export request with ${results.length} results`
+        );
 
-      // Create a link and trigger download
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `pagespeed-report.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Export error:", error);
-      alert(`Error exporting as ${format.toUpperCase()}: ${error.message}`);
-    }
-  };
+        const response = await fetch("/api/export/csv", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            results,
+            reportName: "PageSpeed Insights Report",
+          }),
+        });
+
+        console.log("Response status:", response.status);
+
+        if (!response.ok) {
+          let errorMessage = `Failed with status ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (e) {
+            // If we can't parse the error response as JSON, just use the status code
+          }
+          throw new Error(errorMessage);
+        }
+
+        // Handle the exported file
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+
+        // Create a link and trigger download
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `pagespeed-report.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error("Export error:", error);
+        alert(`Error exporting as CSV: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+
+    // Modified handleExport function to call the appropriate method
+    const handleExport = (format) => {
+      if (format === "csv") {
+        handleExportCSV();
+      } else if (format === "pdf") {
+        handleExportPDF();
+      }
+    };
 
   // Function to save current tests as a scheduled test
   const handleSaveAsScheduled = () => {
